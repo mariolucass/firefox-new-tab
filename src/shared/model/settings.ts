@@ -7,11 +7,13 @@ export const contexts = [
   "personal",
 ] as const;
 export type ContextId = (typeof contexts)[number];
+// Só os rótulos mudam de idioma: os ids continuam em inglês, então
+// exportações antigas e dados salvos seguem válidos.
 export const contextNames: Record<ContextId, string> = {
-  development: "Development",
-  academic: "Academic",
-  career: "Career",
-  personal: "Personal",
+  development: "Desenvolvimento",
+  academic: "Acadêmico",
+  career: "Carreira",
+  personal: "Pessoal",
 };
 
 const url = z

@@ -1,18 +1,22 @@
+import { BrandMark } from "@shared/ui/brand-mark";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
-  Download,
+  ChevronRight,
   Plus,
+  RotateCcw,
+  Target,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
+import { sections, type SectionId } from "@views/home/model/sections";
 import { defaultSettings } from "@shared/model/defaults";
 import { Button } from "@shared/ui/button";
+import { IconPicker } from "./icon-picker";
 import { ShortcutIcon } from "@shared/ui/shortcut-icon";
 import { Input } from "@shared/ui/input";
-import { exportSettings, importSettings } from "@shared/lib/storage";
+import { AppearanceSection } from "./appearance-section";
+import { DataSection } from "./data-section";
+import type { Appearance } from "@features/preferences/model/use-appearance";
 import { useDialogFocus } from "@shared/lib/use-dialog-focus";
 import {
   contextNames,
@@ -26,21 +30,35 @@ import {
 
 export type EditorTarget =
   | { kind: "settings" }
-  | { kind: "shortcut"; item?: Shortcut }
+  | {
+      kind: "shortcut";
+      item?: Shortcut;
+      /** Pré-preenche um atalho novo (ex.: fixar um site frequente). */
+      draft?: { label: string; url: string };
+    }
   | { kind: "focus"; item?: FocusItem };
 type Props = {
   target: EditorTarget;
   settings: Settings;
   update: (change: (previous: Settings) => Settings) => void;
   onClose: () => void;
-  onError: (error: string | null) => void;
+  hiddenSections: SectionId[];
+  onToggleSection: (id: SectionId) => void;
+  appearance: Appearance;
+  onAppearance: (patch: Partial<Appearance>) => void;
 };
 
-function shortcutDraft(item?: Shortcut) {
+function shortcutDraft(
+  item: Shortcut | undefined,
+  activeContext: ContextId,
+  draft?: { label: string; url: string },
+) {
   return {
-    label: item?.label ?? "",
-    url: item?.url ?? "",
-    context: item?.context ?? "development",
+    label: item?.label ?? draft?.label ?? "",
+    url: item?.url ?? draft?.url ?? "",
+    // Atalho novo nasce no contexto que está na tela, não sempre em
+    // Desenvolvimento: é onde a pessoa espera encontrá-lo depois.
+    context: item?.context ?? activeContext,
     keywords: item?.keywords.join(", ") ?? "",
     icon: item?.icon ?? "",
     favorite: item?.favorite ?? false,
@@ -56,16 +74,27 @@ function focusDraft(item: FocusItem | undefined, activeContext: ContextId) {
   };
 }
 
+const shortcutGroups = ["global", ...contexts] as const;
+const groupName = (id: (typeof shortcutGroups)[number]) =>
+  id === "global" ? "Globais" : contextNames[id];
+
 export function SettingsPanel({
   target,
   settings,
   update,
   onClose,
-  onError,
+  hiddenSections,
+  onToggleSection,
+  appearance,
+  onAppearance,
 }: Props) {
   const [screen, setScreen] = useState<EditorTarget>(target);
   const [shortcut, setShortcut] = useState(() =>
-    shortcutDraft(target.kind === "shortcut" ? target.item : undefined),
+    shortcutDraft(
+      target.kind === "shortcut" ? target.item : undefined,
+      settings.activeContext,
+      target.kind === "shortcut" ? target.draft : undefined,
+    ),
   );
   const [focus, setFocus] = useState(() =>
     focusDraft(
@@ -74,7 +103,6 @@ export function SettingsPanel({
     ),
   );
   const [formError, setFormError] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLElement>(null);
   useDialogFocus(dialog);
 
@@ -89,7 +117,11 @@ export function SettingsPanel({
     setScreen(next);
     setFormError("");
     setShortcut(
-      shortcutDraft(next.kind === "shortcut" ? next.item : undefined),
+      shortcutDraft(
+        next.kind === "shortcut" ? next.item : undefined,
+        settings.activeContext,
+        next.kind === "shortcut" ? next.draft : undefined,
+      ),
     );
     setFocus(
       focusDraft(
@@ -178,54 +210,6 @@ export function SettingsPanel({
     edit({ kind: "settings" });
   }
 
-  function move(id: string, direction: -1 | 1) {
-    update((previous) => {
-      const sorted = [...previous.shortcuts].sort((a, b) => a.order - b.order);
-      const index = sorted.findIndex((item) => item.id === id);
-      const other = sorted[index + direction];
-      if (!other) return previous;
-      [sorted[index], sorted[index + direction]] = [
-        sorted[index + direction],
-        sorted[index],
-      ];
-      return {
-        ...previous,
-        shortcuts: sorted.map((item, order) => ({ ...item, order })),
-      };
-    });
-  }
-
-  async function importFile(file?: File) {
-    if (!file) return;
-    if (file.size > 512_000) {
-      onError("Arquivo muito grande para configurações.");
-      return;
-    }
-    try {
-      const imported = importSettings(await file.text());
-      update(() => imported);
-      onError(null);
-      edit({ kind: "settings" });
-    } catch {
-      onError(
-        "Arquivo inválido ou de versão incompatível. As configurações atuais foram mantidas.",
-      );
-    }
-    if (fileInput.current) fileInput.current.value = "";
-  }
-
-  function download() {
-    const blob = new Blob([exportSettings(settings)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "personal-os-settings.json";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
   return (
     <div
       className="dialog-backdrop"
@@ -244,8 +228,8 @@ export function SettingsPanel({
         }}
       >
         <div className="settings-header">
-          <div>
-            <span className="eyebrow">PERSONAL OS</span>
+          <div className="settings-title">
+            <BrandMark size={16} />
             <h2>
               {screen.kind === "settings"
                 ? "Configurações"
@@ -313,16 +297,12 @@ export function SettingsPanel({
                     ))}
                   </select>
                 </label>
-                <label>
-                  Ícone (até 2 letras)
-                  <Input
-                    maxLength={2}
-                    value={shortcut.icon}
-                    onChange={(event) =>
-                      setShortcut({ ...shortcut, icon: event.target.value })
-                    }
-                  />
-                </label>
+                <IconPicker
+                  value={shortcut.icon}
+                  label={shortcut.label}
+                  url={shortcut.url}
+                  onChange={(icon) => setShortcut({ ...shortcut, icon })}
+                />
               </div>
               <label>
                 Palavras-chave{" "}
@@ -436,66 +416,194 @@ export function SettingsPanel({
               </div>
             </form>
           ) : (
-            <>
-              <div className="settings-group">
-                <div className="settings-group-title">
-                  <h3>
+            <div className="settings-sections">
+              <section className="settings-section">
+                <h3 className="settings-caption">Geral</h3>
+                <div className="settings-card">
+                  <label className="settings-row">
+                    <span className="settings-row-text">
+                      <span className="settings-row-title">Mostrar relógio</span>
+                      <span className="settings-row-note">
+                        A hora aparece ao lado da data no cabeçalho.
+                      </span>
+                    </span>
+                    <span className="switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.showClock}
+                        onChange={(event) =>
+                          update((previous) => ({
+                            ...previous,
+                            showClock: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span className="switch-track" aria-hidden="true" />
+                    </span>
+                  </label>
+                  <label className="settings-row">
+                    <span className="settings-row-text">
+                      <span className="settings-row-title">Pesquisa na web</span>
+                      <span className="settings-row-note">
+                        Usada quando o texto não é um atalho nem um endereço.
+                      </span>
+                    </span>
+                    <select
+                      className="settings-select"
+                      value={settings.searchProvider}
+                      onChange={(event) =>
+                        update((previous) => ({
+                          ...previous,
+                          searchProvider: event.target
+                            .value as Settings["searchProvider"],
+                        }))
+                      }
+                    >
+                      <option value="google">Google</option>
+                      <option value="duckduckgo">DuckDuckGo</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <AppearanceSection appearance={appearance} onChange={onAppearance} />
+
+              <section className="settings-section">
+                <h3 className="settings-caption">Seções da página</h3>
+                <p className="settings-help">
+                  Mostre só o que você usa. Fica salvo neste navegador.
+                </p>
+                <div className="settings-card">
+                  {sections.map((section) => (
+                    <label className="settings-row" key={section.id}>
+                      <span className="settings-row-text">
+                        <span className="settings-row-title">{section.name}</span>
+                        <span className="settings-row-note">{section.note}</span>
+                      </span>
+                      <span className="switch">
+                        <input
+                          type="checkbox"
+                          checked={!hiddenSections.includes(section.id)}
+                          onChange={() => onToggleSection(section.id)}
+                        />
+                        <span className="switch-track" aria-hidden="true" />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              <section className="settings-section">
+                <div className="settings-caption-row">
+                  <h3 className="settings-caption">
                     Atalhos <span>{settings.shortcuts.length}</span>
                   </h3>
                   <button
+                    type="button"
                     className="text-button"
                     onClick={() => edit({ kind: "shortcut" })}
                   >
-                    <Plus size={15} /> Adicionar
+                    <Plus size={14} aria-hidden="true" /> Adicionar
                   </button>
                 </div>
-                <p>
-                  Edite URLs, favoritos e ordem. Use as setas para reorganizar.
+                <p className="settings-help">
+                  Para mudar a ordem, arraste os itens na página inicial (ou use
+                  Alt + setas).
                 </p>
-                <div className="settings-list">
-                  {[...settings.shortcuts]
-                    .sort((a, b) => a.order - b.order)
-                    .map((item, index) => (
-                      <div className="settings-list-row" key={item.id}>
+                <div className="settings-stack">
+                  {shortcutGroups.map((group) => {
+                    const list = settings.shortcuts
+                      .filter((item) => item.context === group)
+                      .sort((a, b) => a.order - b.order);
+                    if (!list.length) return null;
+                    return (
+                      <details className="settings-card settings-fold" key={group}>
+                        <summary className="settings-row settings-fold-summary">
+                          <span className="settings-row-title">{groupName(group)}</span>
+                          <span className="settings-fold-count">{list.length}</span>
+                          <ChevronRight
+                            className="settings-fold-chevron"
+                            size={16}
+                            aria-hidden="true"
+                          />
+                        </summary>
+                        <div className="settings-fold-body">
+                          {list.map((item) => (
+                            <div className="settings-row" key={item.id}>
+                              <span className="mini-icon">
+                                <ShortcutIcon icon={item.icon} label={item.label} url={item.url} />
+                              </span>
+                              <button
+                                type="button"
+                                className="list-name"
+                                onClick={() => edit({ kind: "shortcut", item })}
+                              >
+                                {item.label}
+                                {item.favorite && <small>Favorito</small>}
+                              </button>
+                              <button
+                                type="button"
+                                className="tiny-button danger"
+                                aria-label={`Remover ${item.label}`}
+                                onClick={() => {
+                                  if (window.confirm(`Remover ${item.label}?`))
+                                    update((previous) => ({
+                                      ...previous,
+                                      shortcuts: previous.shortcuts.filter(
+                                        (old) => old.id !== item.id,
+                                      ),
+                                    }));
+                                }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="settings-section">
+                <div className="settings-caption-row">
+                  <h3 className="settings-caption">
+                    Em foco <span>{settings.focusItems.length}</span>
+                  </h3>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => edit({ kind: "focus" })}
+                  >
+                    <Plus size={14} aria-hidden="true" /> Adicionar
+                  </button>
+                </div>
+                <p className="settings-help">Até três prioridades por contexto.</p>
+                {settings.focusItems.length > 0 && (
+                  <div className="settings-card">
+                    {settings.focusItems.map((item) => (
+                      <div className="settings-row" key={item.id}>
                         <span className="mini-icon">
-                          <ShortcutIcon icon={item.icon} label={item.label} />
+                          <Target size={16} aria-hidden="true" />
                         </span>
                         <button
+                          type="button"
                           className="list-name"
-                          onClick={() => edit({ kind: "shortcut", item })}
+                          onClick={() => edit({ kind: "focus", item })}
                         >
-                          {item.label}
-                          <small>
-                            {item.favorite ? "Favorito · " : ""}
-                            {item.context === "global"
-                              ? "Global"
-                              : contextNames[item.context]}
-                          </small>
+                          {item.title}
+                          <small>{contextNames[item.context]}</small>
                         </button>
                         <button
-                          className="tiny-button"
-                          disabled={index === 0}
-                          aria-label={`Mover ${item.label} para cima`}
-                          onClick={() => move(item.id, -1)}
-                        >
-                          <ArrowUp size={15} />
-                        </button>
-                        <button
-                          className="tiny-button"
-                          disabled={index === settings.shortcuts.length - 1}
-                          aria-label={`Mover ${item.label} para baixo`}
-                          onClick={() => move(item.id, 1)}
-                        >
-                          <ArrowDown size={15} />
-                        </button>
-                        <button
+                          type="button"
                           className="tiny-button danger"
-                          aria-label={`Remover ${item.label}`}
+                          aria-label={`Remover ${item.title}`}
                           onClick={() => {
-                            if (window.confirm(`Remover ${item.label}?`))
+                            if (window.confirm(`Remover ${item.title}?`))
                               update((previous) => ({
                                 ...previous,
-                                shortcuts: previous.shortcuts.filter(
+                                focusItems: previous.focusItems.filter(
                                   (old) => old.id !== item.id,
                                 ),
                               }));
@@ -505,110 +613,18 @@ export function SettingsPanel({
                         </button>
                       </div>
                     ))}
-                </div>
-              </div>
-              <div className="settings-group">
-                <div className="settings-group-title">
-                  <h3>
-                    Itens de foco <span>{settings.focusItems.length}</span>
-                  </h3>
+                  </div>
+                )}
+              </section>
+
+              <DataSection />
+
+              <section className="settings-section">
+                <h3 className="settings-caption">Padrões</h3>
+                <div className="settings-card">
                   <button
-                    className="text-button"
-                    onClick={() => edit({ kind: "focus" })}
-                  >
-                    <Plus size={15} /> Adicionar
-                  </button>
-                </div>
-                <p>Até três prioridades por contexto.</p>
-                <div className="settings-list">
-                  {settings.focusItems.map((item) => (
-                    <div className="settings-list-row" key={item.id}>
-                      <span className="mini-icon">◎</span>
-                      <button
-                        className="list-name"
-                        onClick={() => edit({ kind: "focus", item })}
-                      >
-                        {item.title}
-                        <small>{contextNames[item.context]}</small>
-                      </button>
-                      <button
-                        className="tiny-button danger"
-                        aria-label={`Remover ${item.title}`}
-                        onClick={() => {
-                          if (window.confirm(`Remover ${item.title}?`))
-                            update((previous) => ({
-                              ...previous,
-                              focusItems: previous.focusItems.filter(
-                                (old) => old.id !== item.id,
-                              ),
-                            }));
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="settings-group">
-                <h3>Preferências</h3>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={settings.showClock}
-                    onChange={(event) =>
-                      update((previous) => ({
-                        ...previous,
-                        showClock: event.target.checked,
-                      }))
-                    }
-                  />{" "}
-                  Mostrar relógio
-                </label>
-                <label className="select-row">
-                  Pesquisa na web
-                  <select
-                    value={settings.searchProvider}
-                    onChange={(event) =>
-                      update((previous) => ({
-                        ...previous,
-                        searchProvider: event.target
-                          .value as Settings["searchProvider"],
-                      }))
-                    }
-                  >
-                    <option value="google">Google</option>
-                    <option value="duckduckgo">DuckDuckGo</option>
-                  </select>
-                </label>
-              </div>
-              <div className="settings-group">
-                <h3>Dados locais</h3>
-                <p>
-                  Configurações permanecem neste navegador. O JSON exportado
-                  contém seus links e prioridades.
-                </p>
-                <div className="data-actions">
-                  <button className="secondary-button" onClick={download}>
-                    <Download size={16} /> Exportar JSON
-                  </button>
-                  <button
-                    className="secondary-button"
-                    onClick={() => fileInput.current?.click()}
-                  >
-                    <Upload size={16} /> Importar JSON
-                  </button>
-                  <input
-                    ref={fileInput}
-                    className="sr-only"
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={(event) =>
-                      void importFile(event.target.files?.[0])
-                    }
-                  />
-                  <button
-                    className="secondary-button danger"
+                    type="button"
+                    className="settings-row settings-action is-danger"
                     onClick={() => {
                       if (
                         window.confirm(
@@ -618,11 +634,12 @@ export function SettingsPanel({
                         update(() => structuredClone(defaultSettings));
                     }}
                   >
-                    Restaurar padrões
+                    <RotateCcw size={16} aria-hidden="true" />
+                    <span className="settings-row-title">Restaurar padrões</span>
                   </button>
                 </div>
-              </div>
-            </>
+              </section>
+            </div>
           )}
         </div>
       </section>
