@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type SyntheticEvent,
 } from "react";
 import {
@@ -126,6 +127,30 @@ function monogramColor(text: string): string {
   return `hsl(${parseInt(hashOf(text), 36) % 360} 85% 72%)`;
 }
 
+/** Versão para fundo claro: marcas muito claras escurecem, o resto fica como está. */
+function brandColorLight(hex: string): string {
+  const channels = [0, 2, 4].map((at) => parseInt(hex.slice(at, at + 2), 16));
+  const linear = channels.map((value) => {
+    const unit = value / 255;
+    return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance =
+    0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  if (luminance < 0.5) return `#${hex}`;
+  const mixed = channels.map((value) => Math.round(value * 0.55));
+  return `rgb(${mixed.join(" ")})`;
+}
+const monogramColorLight = (text: string) =>
+  `hsl(${parseInt(hashOf(text), 36) % 360} 70% 36%)`;
+
+/**
+ * Cor do ícone nos dois temas: `color` é a do escuro e `--ic-l` a do claro; o
+ * CSS (`[data-ic]` com tema claro) escolhe. Funciona sem JS reagir à troca.
+ */
+function iconTone(dark: string, light: string): CSSProperties {
+  return { color: dark, "--ic-l": light } as CSSProperties;
+}
+
 /**
  * Ordem: favicon do site (reconhecimento imediato, como nos Favoritos do
  * Safari) → ícone de marca monocromático → monograma de até 4 caracteres.
@@ -171,7 +196,9 @@ export function IconGlyph({
   seed: string;
   size?: number;
 }) {
-  const color = entry.color ? brandColor(entry.color) : monogramColor(seed);
+  const tone = entry.color
+    ? iconTone(brandColor(entry.color), brandColorLight(entry.color))
+    : iconTone(monogramColor(seed), monogramColorLight(seed));
   const stroke = entry.kind === "stroke";
   return (
     <svg
@@ -183,7 +210,8 @@ export function IconGlyph({
       strokeWidth={stroke ? 1.8 : undefined}
       strokeLinecap={stroke ? "round" : undefined}
       strokeLinejoin={stroke ? "round" : undefined}
-      style={{ color }}
+      style={tone}
+      data-ic=""
       role="img"
       aria-hidden="true"
       focusable="false"
@@ -249,7 +277,8 @@ export function ShortcutIcon({ icon, label, url, favicon }: Props) {
         width="20"
         height="20"
         fill="currentColor"
-        style={{ color: brandColor(legacy.hex) }}
+        style={iconTone(brandColor(legacy.hex), brandColorLight(legacy.hex))}
+        data-ic=""
         role="img"
         aria-hidden="true"
         focusable="false"
@@ -289,7 +318,11 @@ export function ShortcutIcon({ icon, label, url, favicon }: Props) {
   }
   const letters = icon && !chosen && !stale ? icon : label.slice(0, 2);
   return (
-    <span className="monogram" style={{ color: monogramColor(label) }}>
+    <span
+      className="monogram"
+      data-ic=""
+      style={iconTone(monogramColor(label), monogramColorLight(label))}
+    >
       {letters.slice(0, 4).toUpperCase()}
     </span>
   );

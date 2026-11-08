@@ -1429,6 +1429,8 @@ kbd {
    borda e a luz interna fazem o papel da refração.
    ===================================================================== */
 :root {
+  --glass-tint: 14 24 46;
+  --glass-tint-hi: 18 30 56;
   --glass-fill: linear-gradient(
     145deg,
     rgba(255, 255, 255, 0.16) 0%,
@@ -1449,7 +1451,7 @@ kbd {
 
 :is(.header-pill, .dock, .search-field, .search-panel, .settings-panel, .stack-card) {
   isolation: isolate;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.46);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.46);
   -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
   backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.07), var(--glass-drop);
@@ -1463,10 +1465,10 @@ kbd {
 .search-field {
   height: 56px;
   padding: 0 20px 0 24px;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.5);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.5);
 }
 .search-field:hover {
-  background: var(--glass-sheen), var(--glass-fill), rgba(18, 30, 56, 0.55);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint-hi) / 0.55);
 }
 .search-field:focus-within {
   color: var(--theme-accent-strong);
@@ -1477,7 +1479,7 @@ kbd {
     var(--glass-drop);
 }
 .search-panel {
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.78);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.78);
   -webkit-backdrop-filter: blur(32px) saturate(190%);
   backdrop-filter: blur(32px) saturate(190%);
   border-radius: 24px;
@@ -1485,14 +1487,14 @@ kbd {
 
 /* ---------- Blocos de favoritos ---------- */
 .tile .site-icon {
-  background: var(--glass-sheen), var(--glass-fill), rgba(16, 28, 52, 0.7);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.7);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.08), 0 10px 24px rgba(2, 6, 16, 0.35);
   transition:
     transform var(--theme-base) var(--theme-ease-out),
     box-shadow var(--theme-base) var(--theme-ease-out);
 }
 .tile-link:hover .site-icon {
-  background: var(--glass-sheen), var(--glass-fill), rgba(22, 38, 70, 0.78);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint-hi) / 0.78);
   transform: translateY(-3px) scale(1.04);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.16), 0 18px 36px rgba(2, 6, 16, 0.45);
 }
@@ -1502,7 +1504,7 @@ kbd {
 }
 .row .site-icon,
 .mini-icon {
-  background: var(--glass-sheen), var(--glass-fill), rgba(16, 28, 52, 0.7);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.7);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.07);
 }
 
@@ -1513,7 +1515,7 @@ kbd {
   backdrop-filter: blur(10px) saturate(120%);
 }
 .settings-panel {
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.82);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.82);
   -webkit-backdrop-filter: blur(40px) saturate(190%);
   backdrop-filter: blur(40px) saturate(190%);
   border-radius: 28px;
@@ -1547,7 +1549,7 @@ kbd {
     radial-gradient(120% 100% at 0% 0%, hsl(var(--hue) 90% 62% / 0.34), transparent 62%),
     var(--glass-sheen),
     var(--glass-fill),
-    rgba(14, 24, 46, 0.86);
+    rgb(var(--glass-tint) / 0.86);
   transition:
     transform 520ms var(--theme-ease-out),
     opacity 520ms var(--theme-ease-out);
@@ -1661,7 +1663,7 @@ kbd {
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.5);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.5);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.08);
   color: var(--theme-muted);
   transition:
@@ -1763,13 +1765,13 @@ kbd {
 .tile-link:hover .site-icon {
   background:
     radial-gradient(90px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--theme-fg) / 0.28), transparent 70%),
-    var(--glass-sheen), var(--glass-fill), rgba(22, 38, 70, 0.78);
+    var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint-hi) / 0.78);
 }
 .stack-card[data-front="true"]:hover {
   background:
     radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--theme-fg) / 0.16), transparent 70%),
     radial-gradient(120% 100% at 0% 0%, hsl(var(--hue) 90% 62% / 0.34), transparent 62%),
-    var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.86);
+    var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.86);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1829,7 +1831,7 @@ kbd {
   font-weight: 750;
 }
 .cta-ghost {
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.5);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.5);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.09), 0 8px 24px rgba(2, 6, 16, 0.28);
   color: var(--theme-text-soft);
 }
@@ -2251,7 +2253,7 @@ html::-webkit-scrollbar {
   background:
     radial-gradient(110% 120% at 0% 0%, rgba(66, 133, 244, 0.34), transparent 60%),
     radial-gradient(90% 100% at 100% 100%, rgba(15, 157, 88, 0.26), transparent 62%),
-    var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.78);
+    var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.78);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.08), var(--glass-drop);
   transition:
     transform var(--theme-base) var(--spring),
@@ -2358,7 +2360,7 @@ html::-webkit-scrollbar {
   height: 48px;
   padding: 0 16px;
   border-radius: 999px;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.5);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.5);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.08);
   color: var(--theme-subtle);
 }
@@ -2623,7 +2625,7 @@ html::-webkit-scrollbar {
   z-index: 30;
   padding: 12px 20px;
   border-radius: 999px;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.86);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.86);
   -webkit-backdrop-filter: blur(24px) saturate(190%);
   backdrop-filter: blur(24px) saturate(190%);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.1), var(--glass-drop);
@@ -2707,7 +2709,7 @@ html::-webkit-scrollbar {
   z-index: 2;
   padding: 12px 16px;
   border-radius: 16px;
-  background: var(--glass-sheen), rgba(14, 24, 46, 0.92);
+  background: var(--glass-sheen), rgb(var(--glass-tint) / 0.92);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.1), var(--glass-drop);
   font-size: var(--theme-text-sm);
   line-height: 20px;
@@ -2817,7 +2819,7 @@ html::-webkit-scrollbar {
   gap: 4px;
   padding: 8px;
   border-radius: 28px;
-  background: var(--glass-sheen), var(--glass-fill), rgba(14, 24, 46, 0.5);
+  background: var(--glass-sheen), var(--glass-fill), rgb(var(--glass-tint) / 0.5);
   box-shadow: var(--glass-rim), 0 0 0 1px rgb(var(--theme-fg) / 0.08), 0 24px 48px -24px rgba(0, 0, 0, 0.6);
   animation: rise 700ms 260ms var(--spring) backwards;
 }
@@ -4089,7 +4091,6 @@ a.greeting-resume:active {
 .row-link,
 .icon-button,
 .header-search,
-.dock-item,
 .primary-button,
 .secondary-button,
 .greeting-resume,
@@ -4143,6 +4144,8 @@ a.greeting-resume:active {
   display: none;
 }
 html[data-theme="light"] {
+  --glass-tint: 255 255 255;
+  --glass-tint-hi: 255 255 255;
   --glass-drop:
     0 1px 2px rgba(12, 22, 41, 0.08),
     0 8px 24px rgba(12, 22, 41, 0.08),
@@ -4388,4 +4391,36 @@ html[data-theme="light"] .footer-brand img {
   .welcome-tips li {
     animation: none;
   }
+}
+html[data-theme="light"] .dock-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.7));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 0 0 1px rgb(var(--theme-fg) / 0.1),
+    0 6px 16px rgba(12, 22, 41, 0.12);
+}
+html[data-theme="light"] .dock-glow {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- Tema claro: ícones, palavra do dia e marca d'água ---------- */
+html[data-theme="light"] [data-ic] {
+  color: var(--ic-l) !important;
+}
+html[data-theme="light"] .site-favicon.is-dark {
+  filter: none;
+}
+html[data-theme="light"] .greeting-word {
+  background: rgba(88, 86, 214, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(88, 86, 214, 0.3);
+  color: #3b39a8;
+}
+html[data-theme="light"] .greeting-word:hover {
+  background: rgba(88, 86, 214, 0.2);
+}
+html[data-theme="light"] .greeting-word-pt {
+  color: rgba(59, 57, 168, 0.75);
+}
+html[data-theme="light"] .backdrop-mark {
+  opacity: 0.028;
 }
