@@ -67,3 +67,20 @@ describe("migração do catálogo de fábrica", () => {
     );
   });
 });
+
+describe("Classroom", () => {
+  it("troca o endereço antigo de fábrica pelo da conta /u/1", () => {
+    const old = structuredClone(defaultSettings);
+    const index = old.shortcuts.findIndex((item) => item.label === "Classroom");
+    old.shortcuts[index] = { ...old.shortcuts[index], url: "https://classroom.google.com" };
+    const { settings, migrated } = migrateSettings(old);
+    expect(migrated).toBe(true);
+    expect(settings.shortcuts[index].url).toBe("https://classroom.google.com/u/1/h/st");
+  });
+  it("não mexe em quem já escolheu outro endereço", () => {
+    const mine = structuredClone(defaultSettings);
+    const index = mine.shortcuts.findIndex((item) => item.label === "Classroom");
+    mine.shortcuts[index] = { ...mine.shortcuts[index], url: "https://classroom.google.com/u/0/h" };
+    expect(migrateSettings(mine).migrated).toBe(false);
+  });
+});

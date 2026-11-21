@@ -2,10 +2,12 @@
 
 import { BrandMark } from "@shared/ui/brand-mark";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { ArrowUpRight, Check, ChevronDown, ChevronUp, Plus, Timer, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronUp, Plus, Target, Timer, X } from "lucide-react";
+import { SectionAction, SectionHead } from "@shared/ui/section-head";
 import { formatRemaining, type FocusSession, type useFocusTimer } from "@features/timer/model/use-focus-timer";
 import { useSpotlight } from "@shared/lib/use-spotlight";
 import type { FocusItem } from "@shared/model/settings";
+import { FocusInfo } from "./focus-info";
 
 type Props = {
   items: FocusItem[];
@@ -94,18 +96,20 @@ export function FocusArea({ items, contextName, onAdd, onEdit, timer }: Props) {
 
   return (
     <section className="section" aria-label="Em foco">
-      <div className="section-heading">
-        <h2>Em foco</h2>
-        <button
-          type="button"
-          className="text-button"
-          onClick={onAdd}
-          disabled={full}
-          title={full ? "Limite de 3 prioridades por contexto" : undefined}
-        >
-          <Plus size={14} aria-hidden="true" /> Adicionar
-        </button>
-      </div>
+      <SectionHead
+        icon={Target}
+        title="Em foco"
+        meta={count ? `${count} de 3 prioridades · ${contextName}` : `Nenhuma prioridade em ${contextName}`}
+        actions={
+          <SectionAction
+            icon={Plus}
+            label={full ? "Limite de 3 prioridades por contexto" : "Adicionar prioridade"}
+            onClick={onAdd}
+            disabled={full}
+            primary
+          />
+        }
+      />
       {count ? (
         <>
           <ul
@@ -151,10 +155,7 @@ export function FocusArea({ items, contextName, onAdd, onEdit, timer }: Props) {
                   <span className="stack-index">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <div className="stack-body">
-                    <h3>{item.title}</h3>
-                    {item.description && <p>{item.description}</p>}
-                  </div>
+                  <FocusInfo item={item} isFront={isFront} onEdit={onEdit} />
                   <div className="stack-foot">
                     <div className="stack-foot-main">
                       {item.url ? (

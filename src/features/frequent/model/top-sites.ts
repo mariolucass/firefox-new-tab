@@ -7,12 +7,25 @@ export type TopSite = {
   host: string;
   /** data: URL do favicon, entregue pelo próprio navegador (sem rede). */
   favicon?: string;
+  /** Visitas nos últimos 60 dias (histórico do navegador), quando a permissão existe. */
+  visits?: number;
+};
+
+type HistoryItem = {
+  url?: string;
+  title?: string;
+  visitCount?: number;
+  typedCount?: number;
+  lastVisitTime?: number;
 };
 
 type RawTopSite = { url?: string; title?: string; favicon?: string | null };
 
 declare const browser:
   | {
+      history?: {
+        search(query: { text: string; startTime?: number; maxResults?: number }): Promise<HistoryItem[]>;
+      };
       topSites?: {
         get(options: {
           includeFavicon?: boolean;
@@ -45,19 +58,33 @@ export function hostOf(url: string): string {
   }
 }
 
+/** Histórico dos últimos `days` dias (Firefox ou Chromium); vazio sem permissão. */
+async function readHistory(days: number): Promise<HistoryItem[]> {
+  const query = { text: "", startTime: Date.now() - days * 86_400_000, maxResults: 5000 };
+  try {
+    if (typeof browser !== "undefined" && browser?.history?.search) return await browser.history.search(query);
+    if (typeof chrome !== "undefined" && chrome.history?.search)
+      return await new Promise<HistoryItem[]>((resolve) => chrome.history.search(query, (items) => resolve(items)));
+  } catch {
+    // Sem permissão "history": segue só com topSites.
+  }
+  return [];
+}
+
 /**
- * Lê os sites mais frequentes. Firefox: `browser.topSites` (frecência do
- * histórico, um por domínio, com favicon). Chromium: `chrome.topSites`, sem
- * favicon. Fora de uma extensão (pnpm dev), devolve lista vazia.
+ * Lê os sites mais frequentes. O topSites do navegador devolve poucos (e o
+ * Firefox ainda tira os fixados), então o ranking vem do histórico: por
+ * domínio, visitas + digitadas ×3 nos últimos 60 dias. O topSites entra como
+ * bônus de frecência e como fonte dos favicons. Fora de uma extensão, vazio.
  */
-export async function fetchTopSites(limit = 40): Promise<TopSite[]> {
+export async function fetchTopSites(limit = 60): Promise<TopSite[]> {
   let raw: RawTopSite[] = [];
   try {
     if (typeof browser !== "undefined" && browser?.topSites?.get) {
       raw = await browser.topSites.get({
         includeFavicon: true,
         onePerDomain: true,
-        limit,
+        limit: 100,
       });
     } else if (typeof chrome !== "undefined" && chrome.topSites?.get) {
       raw = await new Promise<RawTopSite[]>((resolve) =>
@@ -65,23 +92,57 @@ export async function fetchTopSites(limit = 40): Promise<TopSite[]> {
       );
     }
   } catch {
-    return [];
+    raw = [];
   }
-  const seen = new Set<string>();
-  const sites: TopSite[] = [];
-  for (const item of raw) {
-    if (!item.url || !/^https?:/.test(item.url)) continue;
+  const history = await readHistory(60);
+
+  type Entry = TopSite & { score: number; best: number };
+  const byHost = new Map<string, Entry>();
+  raw.forEach((item, index) => {
+    if (!item.url || !/^https?:/.test(item.url)) return;
     const host = hostOf(item.url);
-    if (!host || seen.has(host)) continue;
-    seen.add(host);
-    sites.push({
+    if (!host || byHost.has(host)) return;
+    byHost.set(host, {
       url: item.url,
       title: (item.title || host).trim(),
       host,
       favicon: item.favicon || undefined,
+      score: Math.max(0, 40 - index),
+      best: 0,
     });
+  });
+  const visitsOf = new Map<string, number>();
+  for (const item of history) {
+    if (!item.url || !/^https?:/.test(item.url)) continue;
+    const host = hostOf(item.url);
+    if (!host) continue;
+    const weight = (item.visitCount ?? 1) + (item.typedCount ?? 0) * 3;
+    visitsOf.set(host, (visitsOf.get(host) ?? 0) + weight);
+    const entry = byHost.get(host) ?? {
+      url: new URL(item.url).origin + "/",
+      title: host,
+      host,
+      score: 0,
+      best: 0,
+    };
+    // A página mais visitada do domínio dá o título.
+    if (weight > entry.best && item.title) {
+      entry.best = weight;
+      if (!byHost.has(host) || entry.title === host) entry.title = item.title.trim();
+    }
+    byHost.set(host, entry);
   }
-  return sites;
+  return [...byHost.values()]
+    .map((entry) => ({ ...entry, visits: visitsOf.get(entry.host), score: entry.score + (visitsOf.get(entry.host) ?? 0) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry): TopSite => ({
+      url: entry.url,
+      title: entry.title,
+      host: entry.host,
+      favicon: entry.favicon,
+      visits: entry.visits,
+    }));
 }
 
 /** localhost e IPs: portas de desenvolvimento passageiras, não destinos. */
@@ -100,7 +161,7 @@ export function isNoiseHost(host: string): boolean {
 export function frequentNotSaved(
   sites: TopSite[],
   shortcuts: Shortcut[],
-  limit = 8,
+  limit = 12,
 ): TopSite[] {
   const saved = new Set(shortcuts.map((item) => hostOf(item.url)));
   return sites

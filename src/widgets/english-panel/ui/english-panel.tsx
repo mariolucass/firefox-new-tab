@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowLeftRight, Check, Flame, Mic, Plus, RotateCcw, Shuffle, Snail, Volume2, X } from "lucide-react";
+import { ArrowLeftRight, Check, Flame, Languages, Mic, Plus, RotateCcw, Shuffle, Snail, Volume2, X } from "lucide-react";
+import { SectionHead } from "@shared/ui/section-head";
 import { levels, phraseOfTheDay, themes, wordOfTheDay, type Level, type Theme } from "@features/english/model/content";
 import { goals, type useEnglish } from "@features/english/model/use-english";
 import { compare, type WordResult } from "@features/english/model/compare";
@@ -91,16 +92,12 @@ export function EnglishPanel({ vocab, english }: Props) {
 
   return (
     <section className="section english-section" aria-label="Inglês">
-      <div className="section-heading">
-        <h2>
-          Inglês
-          <span className="section-hint" aria-hidden="true">
-            <kbd>Alt</kbd>
-            <kbd>I</kbd>
-          </span>
-        </h2>
-        {!voice && <span className="english-warn">Este navegador não tem voz sintetizada</span>}
-      </div>
+      <SectionHead
+        icon={Languages}
+        title="Inglês"
+        hint={["Alt", "I"]}
+        meta={voice ? "Palavra, frase e vocabulário — um pouco por dia" : "Este navegador não tem voz sintetizada"}
+      />
 
       <div className="english-bar">
         <div className="english-goals" aria-label="Metas de hoje">

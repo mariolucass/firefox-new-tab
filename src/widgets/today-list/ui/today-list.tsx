@@ -1,16 +1,24 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CalendarDays, Check, Plus, Repeat as RepeatIcon, X } from "lucide-react";
+import { CalendarCheck, CalendarDays, Check, CircleAlert, ListX, Plus, Repeat as RepeatIcon, Timer, X } from "lucide-react";
+import { SectionAction, SectionHead } from "@shared/ui/section-head";
 import { isDueToday, type Repeat, type useToday } from "@features/today/model/use-today";
 
-type Props = { today: ReturnType<typeof useToday> };
+type Props = {
+  today: ReturnType<typeof useToday>;
+  /** Inicia um foco de 25 min nesta tarefa. */
+  onFocusTask?: (text: string) => void;
+};
+
+/** Para o dia livre: começos fáceis, a um clique. */
+const starters = ["Revisar e-mails", "Estudar 25 min", "Treinar", "Planejar a semana"];
 
 /**
  * Lista do dia: o que precisa acontecer hoje, a um clique da busca. Enter
  * adiciona, o círculo conclui, e o que foi concluído some na virada do dia.
  */
-export function TodayList({ today }: Props) {
+export function TodayList({ today, onFocusTask }: Props) {
   const { tasks: all, add, toggle, remove, clearDone, full } = today;
   const [text, setText] = useState("");
   const [options, setOptions] = useState(false);
@@ -76,6 +84,17 @@ export function TodayList({ today }: Props) {
           {dayLabel(task.due)}
         </span>
       )}
+      {onFocusTask && !task.done && (
+        <button
+          type="button"
+          className="rem-focus"
+          onClick={() => onFocusTask(task.text)}
+          aria-label={`Focar 25 min em ${task.text}`}
+          title="Focar 25 min nisto"
+        >
+          <Timer size={15} aria-hidden="true" />
+        </button>
+      )}
       <button
         type="button"
         className="rem-remove"
@@ -86,39 +105,89 @@ export function TodayList({ today }: Props) {
       </button>
     </li>
   );
+  const late = open.filter((task) => task.due && task.due < todayKey).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const month = date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
 
   return (
     <section className="section" aria-label="Hoje">
-      <div className="section-heading">
-        <h2>
-          Hoje
-          <span className="section-hint" aria-hidden="true">
-            <kbd>Alt</kbd>
-            <kbd>T</kbd>
-          </span>
-        </h2>
-        {done > 0 && (
-          <button type="button" className="text-button is-quiet" onClick={clearDone}>
-            Limpar concluídas ({done})
-          </button>
-        )}
-      </div>
+      <SectionHead
+        icon={CalendarCheck}
+        title="Hoje"
+        hint={["Alt", "T"]}
+        meta={total ? `${done} de ${total} ${total === 1 ? "feita" : "feitas"}` : "Nada marcado para hoje"}
+        actions={
+          done > 0 ? (
+            <SectionAction icon={ListX} label={`Limpar ${done} concluída${done === 1 ? "" : "s"}`} badge={done} onClick={clearDone} />
+          ) : undefined
+        }
+      />
       <div className="rem-card">
-        <header className="rem-head">
-          <span className="rem-icon" aria-hidden="true">
-            {date.getDate()}
-          </span>
-          <span className="rem-count" data-zero={pending === 0} aria-hidden="true">
-            {pending}
-          </span>
+        <header className="rem-hero">
+          <div className="rem-ring" data-complete={total > 0 && pending === 0} aria-hidden="true">
+            <svg viewBox="0 0 80 80">
+              <circle className="rem-ring-track" cx="40" cy="40" r="34" />
+              <circle
+                className="rem-ring-arc"
+                cx="40"
+                cy="40"
+                r="34"
+                pathLength={100}
+                strokeDasharray={`${pct} 100`}
+              />
+            </svg>
+            <span className="rem-ring-num">
+              {total === 0 ? date.getDate() : pending === 0 ? <Check size={26} strokeWidth={3} /> : pending}
+            </span>
+            <span className="rem-ring-cap">
+              {total === 0 ? month : pending === 0 ? "feito" : pending === 1 ? "pendente" : "pendentes"}
+            </span>
+          </div>
+          <div className="rem-hero-text">
+            <p className="rem-hello">
+              {weekday.charAt(0).toUpperCase() + weekday.slice(1)} · {longDate}
+            </p>
+            <p className="rem-sub" aria-live="polite">
+              {total === 0
+                ? "Dia livre. Escolha o que precisa acontecer hoje."
+                : pending === 0
+                  ? "Tudo feito. Aproveite o resto do dia."
+                  : pending === 1
+                    ? "Falta só uma. Dá para fechar agora."
+                    : `${pending} para fechar hoje.`}
+            </p>
+            {(total > 0 || upcoming.length > 0) && (
+              <ul className="rem-stats">
+                <li data-kind="done">
+                  <Check size={12} strokeWidth={3} aria-hidden="true" />
+                  {done} {done === 1 ? "feita" : "feitas"}
+                </li>
+                {upcoming.length > 0 && (
+                  <li data-kind="next">
+                    <CalendarDays size={12} aria-hidden="true" />
+                    {upcoming.length} {upcoming.length === 1 ? "próxima" : "próximas"}
+                  </li>
+                )}
+                {late > 0 && (
+                  <li data-kind="late">
+                    <CircleAlert size={12} aria-hidden="true" />
+                    {late} {late === 1 ? "atrasada" : "atrasadas"}
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
         </header>
-        <p className="rem-sub" aria-live="polite">
-          {total === 0
-            ? `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${longDate}. Dia livre.`
-            : pending === 0
-              ? "Tudo feito. Aproveite o resto do dia."
-              : `${pending} ${pending === 1 ? "pendente" : "pendentes"} · ${weekday}, ${longDate}`}
-        </p>
+        {total === 0 && upcoming.length === 0 && !full && (
+          <div className="rem-suggest" role="group" aria-label="Sugestões">
+            {starters.map((starter) => (
+              <button key={starter} type="button" onClick={() => add(starter, {})}>
+                <Plus size={13} strokeWidth={2.6} aria-hidden="true" />
+                {starter}
+              </button>
+            ))}
+          </div>
+        )}
         <ul className="rem-list">
           {open.map((task, index) => row(task, index))}
         </ul>

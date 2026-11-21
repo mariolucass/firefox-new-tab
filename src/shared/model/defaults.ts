@@ -73,7 +73,7 @@ const entries: Entry[] = [
   ],
   [
     "Classroom",
-    "https://classroom.google.com",
+    "https://classroom.google.com/u/1/h/st",
     "google-classroom",
     "academic",
     true,

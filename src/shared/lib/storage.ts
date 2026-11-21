@@ -3,6 +3,7 @@ import { isLegacyCatalog } from "@shared/model/legacy-catalog";
 import { parseSettings, type Settings } from "@shared/model/settings";
 
 const key = "personal-command-center-settings";
+const classroomUrl = "https://classroom.google.com/u/1/h/st";
 
 /**
  * Cópia síncrona das preferências no localStorage da extensão. O
@@ -45,8 +46,21 @@ export function migrateSettings(settings: Settings): {
   settings: Settings;
   migrated: boolean;
 } {
-  if (!isLegacyCatalog(settings.shortcuts))
-    return { settings, migrated: false };
+  if (!isLegacyCatalog(settings.shortcuts)) {
+    // O Classroom de fábrica agora abre direto na conta /u/1 (a das aulas, no
+    // navegador): quem ainda tem o endereço antigo, sem edição, recebe o novo.
+    let changed = false;
+    const shortcuts = settings.shortcuts.map((item) => {
+      if (/^https:\/\/classroom\.google\.com\/?$/.test(item.url)) {
+        changed = true;
+        return { ...item, url: classroomUrl };
+      }
+      return item;
+    });
+    return changed
+      ? { settings: parseSettings({ ...settings, shortcuts }), migrated: true }
+      : { settings, migrated: false };
+  }
   return {
     settings: parseSettings({
       ...settings,

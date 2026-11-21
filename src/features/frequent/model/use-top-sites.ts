@@ -19,7 +19,7 @@ function readCache(): TopSite[] {
  * Sites frequentes do navegador. A última lista fica em cache local e entra
  * antes do primeiro quadro (favicons e Frequentes aparecem na hora, sem
  * empurrar a página); a consulta ao histórico roda depois e atualiza o cache.
- * 24 sites bastam: 8 viram Frequentes, o resto só empresta favicons.
+ * 60 sites: 12 viram Frequentes, o resto empresta favicons e alimenta a busca.
  */
 export function useTopSites(): TopSite[] {
   const [sites, setSites] = useState<TopSite[]>([]);
@@ -29,7 +29,7 @@ export function useTopSites(): TopSite[] {
   }, []);
   useEffect(() => {
     let active = true;
-    void fetchTopSites(24).then((result) => {
+    void fetchTopSites(60).then((result) => {
       if (!active || !result.length) return;
       setSites(result);
       try {

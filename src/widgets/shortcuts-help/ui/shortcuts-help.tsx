@@ -2,8 +2,15 @@
 
 import { BrandMark } from "@shared/ui/brand-mark";
 import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
-import { hotkeyGroups, hotkeys } from "@shared/model/hotkeys";
+import { Compass, Layers, PlusSquare, Search, TerminalSquare, X } from "lucide-react";
+import { hotkeyGroups, hotkeys, type HotkeyGroup } from "@shared/model/hotkeys";
+
+const groupIcons: Record<HotkeyGroup, typeof Search> = {
+  "Buscar e abrir": Search,
+  Contexto: Layers,
+  Criar: PlusSquare,
+  "Mover-se": Compass,
+};
 
 type Props = { onClose: () => void };
 
@@ -50,9 +57,14 @@ export function ShortcutsHelp({ onClose }: Props) {
           </button>
         </header>
         <div className="help-grid">
-          {hotkeyGroups.map((group) => (
+          {hotkeyGroups.map((group) => {
+            const Icon = groupIcons[group];
+            return (
             <section key={group} className="help-group">
-              <h3>{group}</h3>
+              <h3>
+                <Icon size={14} strokeWidth={2} aria-hidden="true" />
+                {group}
+              </h3>
               <ul>
                 {hotkeys
                   .filter((hotkey) => hotkey.group === group)
@@ -72,9 +84,13 @@ export function ShortcutsHelp({ onClose }: Props) {
                   ))}
               </ul>
             </section>
-          ))}
+            );
+          })}
           <section className="help-group">
-            <h3>Na busca</h3>
+            <h3>
+              <TerminalSquare size={14} strokeWidth={2} aria-hidden="true" />
+              Na busca
+            </h3>
             <ul>
               <li><span>Tarefa em Hoje</span><span className="help-keys"><kbd>+</kbd><em>texto</em></span></li>
               <li><span>Nota rápida</span><span className="help-keys"><kbd>nota</kbd><em>texto</em></span></li>

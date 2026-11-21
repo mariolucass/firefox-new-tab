@@ -15,8 +15,10 @@ import { IconPicker } from "./icon-picker";
 import { ShortcutIcon } from "@shared/ui/shortcut-icon";
 import { Input } from "@shared/ui/input";
 import { AppearanceSection } from "./appearance-section";
+import { LogSection } from "./log-section";
 import { DataSection } from "./data-section";
 import type { Appearance } from "@features/preferences/model/use-appearance";
+import { parseRepo } from "@features/github/model/github-repo";
 import { useDialogFocus } from "@shared/lib/use-dialog-focus";
 import {
   contextNames,
@@ -70,6 +72,8 @@ function focusDraft(item: FocusItem | undefined, activeContext: ContextId) {
     title: item?.title ?? "",
     description: item?.description ?? "",
     url: item?.url ?? "",
+    repo: item?.repo ?? "",
+    deploy: item?.deploy ?? "",
     context: item?.context ?? activeContext,
   };
 }
@@ -174,6 +178,16 @@ export function SettingsPanel({
       setFormError("Informe uma URL http ou https válida.");
       return;
     }
+    const repo = focus.repo.trim() ? parseRepo(focus.repo) : undefined;
+    if (focus.repo.trim() && !repo) {
+      setFormError("Repositório inválido. Use owner/nome ou o link do GitHub.");
+      return;
+    }
+    const deploy = focus.deploy.trim() ? validUrl(focus.deploy) : undefined;
+    if (focus.deploy.trim() && !deploy) {
+      setFormError("Informe uma URL http ou https válida para o deploy.");
+      return;
+    }
     const context = focus.context as ContextId;
     const isEditing = screen.kind === "focus" && Boolean(screen.item);
     if (
@@ -196,6 +210,8 @@ export function SettingsPanel({
       title: focus.title.trim(),
       description: focus.description.trim() || undefined,
       url: url || undefined,
+      repo: repo || undefined,
+      deploy: deploy || undefined,
       order:
         screen.kind === "focus" && screen.item
           ? screen.item.order
@@ -375,6 +391,31 @@ export function SettingsPanel({
                   value={focus.url}
                   onChange={(event) =>
                     setFocus({ ...focus, url: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Repositório no GitHub <span className="field-note">opcional</span>
+                <Input
+                  placeholder="owner/nome ou link do GitHub"
+                  maxLength={100}
+                  value={focus.repo}
+                  onChange={(event) =>
+                    setFocus({ ...focus, repo: event.target.value })
+                  }
+                />
+                <span className="field-note">
+                  Traz descrição, linguagem, estrelas e a última atualização.
+                </span>
+              </label>
+              <label>
+                Deploy <span className="field-note">opcional</span>
+                <Input
+                  type="url"
+                  placeholder="https://… (sem isso, usa o site do repositório)"
+                  value={focus.deploy}
+                  onChange={(event) =>
+                    setFocus({ ...focus, deploy: event.target.value })
                   }
                 />
               </label>
@@ -616,6 +657,8 @@ export function SettingsPanel({
                   </div>
                 )}
               </section>
+
+              <LogSection settings={settings} update={update} />
 
               <DataSection />
 
