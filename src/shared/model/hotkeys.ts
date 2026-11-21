@@ -24,6 +24,7 @@ export const hotkeys: Hotkey[] = [
   { id: "context", keys: ["Alt", "1–4"], label: "Trocar de contexto", group: "Contexto" },
   { id: "focus", keys: ["Alt", "F"], label: "Iniciar ou parar foco de 25 min", group: "Contexto" },
   { id: "settings", keys: ["Alt", ","], label: "Configurações", group: "Contexto" },
+  { id: "palette", keys: ["Alt", "P"], label: "Trocar a atmosfera (paleta)", group: "Contexto" },
 
   { id: "task", keys: ["Alt", "T"], label: "Nova tarefa em Hoje", group: "Criar" },
   { id: "note", keys: ["Alt", "N"], label: "Nova nota", group: "Criar" },

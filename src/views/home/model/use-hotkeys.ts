@@ -11,6 +11,8 @@ type Actions = {
   addShortcut: () => void;
   openHelp: () => void;
   toggleFocus: () => void;
+  /** Próxima atmosfera; devolve o nome para o aviso. */
+  cyclePalette: () => string;
 };
 
 const fields = {
@@ -92,10 +94,8 @@ export function useHotkeys(actions: Actions) {
         KeyL: a.addShortcut,
         KeyF: a.toggleFocus,
         Comma: a.openSettings,
-        Home: () => {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-          a.focusSearch();
-        },
+        KeyP: () => a.notify(`Atmosfera: ${a.cyclePalette()}`),
+        Home: a.focusSearch,
         ArrowDown: () => jumpSection(1, a.focusSearch),
         ArrowUp: () => jumpSection(-1, a.focusSearch),
       };

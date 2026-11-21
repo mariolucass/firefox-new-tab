@@ -2,7 +2,8 @@
 
 import { BrandMark } from "@shared/ui/brand-mark";
 import { useState, type FormEvent } from "react";
-import { Check, Copy, Plus, X } from "lucide-react";
+import { Check, ChevronsDownUp, ChevronsUpDown, Copy, Plus, StickyNote, X } from "lucide-react";
+import { SectionAction, SectionHead } from "@shared/ui/section-head";
 import type { useNotes } from "@features/notes/model/use-notes";
 
 type Props = { notes: ReturnType<typeof useNotes> };
@@ -48,21 +49,21 @@ export function NotesList({ notes: store }: Props) {
 
   return (
     <section className="section notes-section" aria-label="Notas">
-      <div className="section-heading">
-        <h2>
-          Notas
-          {notes.length > 0 && <span className="section-count">{notes.length}</span>}
-          <span className="section-hint" aria-hidden="true">
-            <kbd>Alt</kbd>
-            <kbd>N</kbd>
-          </span>
-        </h2>
-        {notes.length > visible && (
-          <button type="button" className="text-button is-quiet" onClick={() => setAll((value) => !value)}>
-            {all ? "Mostrar menos" : `Ver todas (${notes.length})`}
-          </button>
-        )}
-      </div>
+      <SectionHead
+        icon={StickyNote}
+        title="Notas"
+        hint={["Alt", "N"]}
+        meta={notes.length ? `${notes.length} ${notes.length === 1 ? "nota salva" : "notas salvas"} · neste navegador` : "Ideias rápidas, salvas neste navegador"}
+        actions={
+          notes.length > visible ? (
+            <SectionAction
+              icon={all ? ChevronsDownUp : ChevronsUpDown}
+              label={all ? "Mostrar menos" : `Ver todas as ${notes.length}`}
+              onClick={() => setAll((value) => !value)}
+            />
+          ) : undefined
+        }
+      />
       <div className="notes-body">
         <form className="note-composer" onSubmit={submit}>
           <div className="note-composer-head">

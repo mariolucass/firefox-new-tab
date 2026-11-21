@@ -7,7 +7,8 @@ import { themeVars } from "@/shared/config/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nexo",
+  // Título de partida; depois de montar, a página o atualiza (contexto, foco, pendências).
+  title: "Nexo · Onde tudo se encontra",
   description: "Nova aba local para atalhos, contextos e prioridades.",
   // Caminhos relativos: a página é index.html na raiz da extensão.
   icons: {

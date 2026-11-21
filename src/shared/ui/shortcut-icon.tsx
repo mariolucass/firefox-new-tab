@@ -18,6 +18,18 @@ import {
   type IconEntry,
 } from "@shared/lib/icon-library";
 import { brandIcons, type BrandIconKey } from "./brand-icons";
+import { aiLogos } from "./ai-logos";
+import { SquareTerminal } from "lucide-react";
+
+/** Sites de IA sem marca no simple-icons: logotipo próprio, na cor da marca. */
+const aiHosts: Record<string, { id: string; color: string }> = {
+  "chatgpt.com": { id: "chatgpt", color: "#10a37f" },
+  "chat.openai.com": { id: "chatgpt", color: "#10a37f" },
+  "openai.com": { id: "chatgpt", color: "#10a37f" },
+  "grok.com": { id: "grok", color: "#f5f5f7" },
+  "chat.deepseek.com": { id: "deepseek", color: "#6b86ff" },
+  "deepseek.com": { id: "deepseek", color: "#6b86ff" },
+};
 
 type Props = {
   icon?: string;
@@ -269,6 +281,21 @@ export function ShortcutIcon({ icon, label, url, favicon }: Props) {
   useLayoutEffect(() => {
     if (faviconKey) setDark(darkMap()[faviconKey] ?? null);
   }, [faviconKey]);
+
+  // localhost e IPs: servidor de desenvolvimento, com ícone de terminal.
+  if (!chosen && !legacy && /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(host)) {
+    return <SquareTerminal size={24} strokeWidth={1.8} style={{ color: "#5fe0a0" }} aria-hidden="true" />;
+  }
+  const ai = !chosen && !legacy ? aiHosts[host.replace(/^www\./, "")] : undefined;
+  if (ai && aiLogos[ai.id]) {
+    return (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" fillRule="evenodd" style={{ color: ai.color }} role="img" aria-hidden="true" focusable="false">
+        {aiLogos[ai.id].paths.map((d, index) => (
+          <path key={index} d={d} />
+        ))}
+      </svg>
+    );
+  }
 
   if (legacy) {
     return (

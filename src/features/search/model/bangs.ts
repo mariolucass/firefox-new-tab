@@ -67,6 +67,46 @@ export const bangs: Bang[] = [
     name: "Google Acadêmico",
     url: (t) => `https://scholar.google.com/scholar?q=${q(t)}`,
   },
+  {
+    key: "rd",
+    name: "Reddit",
+    url: (t) => `https://www.reddit.com/search/?q=${q(t)}`,
+  },
+  {
+    key: "x",
+    name: "X",
+    url: (t) => `https://x.com/search?q=${q(t)}`,
+  },
+  {
+    key: "sp",
+    name: "Spotify",
+    url: (t) => `https://open.spotify.com/search/${q(t)}`,
+  },
+  {
+    key: "imdb",
+    name: "IMDb",
+    url: (t) => `https://www.imdb.com/find/?q=${q(t)}`,
+  },
+  {
+    key: "hn",
+    name: "Hacker News",
+    url: (t) => `https://hn.algolia.com/?q=${q(t)}`,
+  },
+  {
+    key: "hf",
+    name: "Hugging Face",
+    url: (t) => `https://huggingface.co/models?search=${q(t)}`,
+  },
+  {
+    key: "am",
+    name: "Amazon",
+    url: (t) => `https://www.amazon.com.br/s?k=${q(t)}`,
+  },
+  {
+    key: "gm",
+    name: "Gmail",
+    url: (t) => `https://mail.google.com/mail/u/0/#search/${q(t)}`,
+  },
 ];
 
 const byKey = new Map(bangs.map((bang) => [bang.key, bang]));

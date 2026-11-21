@@ -27,7 +27,6 @@ import { useEnglish } from "@features/english/model/use-english";
 import { wordOfTheDay } from "@features/english/model/content";
 import { guessDirection, translate } from "@features/english/model/translate";
 import { speak } from "@features/english/model/speak";
-import { EnglishPanel } from "@widgets/english-panel/ui/english-panel";
 import { useToday } from "@features/today/model/use-today";
 import { driveShortcuts } from "@features/drive/model/links";
 import { useDriveInbox } from "@features/drive/model/use-drive-inbox";
@@ -37,18 +36,18 @@ import { useHiddenSections } from "@features/preferences/model/use-hidden-sectio
 import { useSettings } from "@features/preferences/model/use-settings";
 import { favoriteShortcuts } from "@features/search/model/filter";
 import { AppHeader } from "@widgets/app-header/ui/app-header";
-import { Welcome } from "@widgets/welcome/ui/welcome";
 import { BrandMark } from "@shared/ui/brand-mark";
 import {
+  IntroProvider,
   MotionProvider,
   Reveal,
-  ScrollDrift,
   ScrollProgress,
+  useIntroStageState,
+  useScrollParallax,
 } from "@shared/ui/motion";
 import { Backdrop } from "@widgets/backdrop/ui/backdrop";
-import { DrivePanel } from "@widgets/drive-panel/ui/drive-panel";
 import { FocusArea } from "@widgets/focus-area/ui/focus-area";
-import { Greeting } from "@widgets/greeting/ui/greeting";
+import { DayPanel, Greeting } from "@widgets/greeting/ui/greeting";
 import { TodayList } from "@widgets/today-list/ui/today-list";
 import { FrequentSites } from "@widgets/frequent-sites/ui/frequent-sites";
 import {
@@ -57,19 +56,48 @@ import {
 } from "@widgets/search-bar/ui/search-bar";
 import type { EditorTarget } from "@widgets/settings-panel/ui/settings-panel";
 import { NotesList } from "@widgets/notes-list/ui/notes-list";
-import { ShortcutsHelp } from "@widgets/shortcuts-help/ui/shortcuts-help";
 import { ScrollRail } from "@widgets/scroll-rail/ui/scroll-rail";
+import { SectionNav, type SectionLink } from "@widgets/section-nav/ui/section-nav";
 import { ShortcutGrid } from "@widgets/shortcut-grid/ui/shortcut-grid";
 import { useHotkeys } from "@views/home/model/use-hotkeys";
+import { DocumentTitle } from "@views/home/ui/document-title";
 import { reorderByIds } from "@shared/lib/reorder";
 import { openAfterPress, openMany } from "@shared/lib/navigation";
 import { contextNames, contexts, type ContextId } from "@shared/model/settings";
+import { contextIcons } from "@shared/ui/context-icons";
+import { CalendarCheck, Gauge, HardDrive, Languages, StickyNote, Target } from "lucide-react";
+import {
+  logVisit,
+  setLogContext,
+  type VisitSource,
+} from "@features/log/model/visit-log";
+import { useClipboardLink } from "@features/search/model/use-clipboard-link";
 
-// O painel de configurações (o maior componente) só é carregado quando
-// aberto: cada nova aba deixa de interpretá-lo à toa.
+// Modais (configurações, ajuda, boas-vindas) só entram quando abertos: cada
+// nova aba deixa de interpretá-los à toa. No ocioso, os três são pré-baixados,
+// então abrir continua instantâneo.
+const loadSettings = () => import("@widgets/settings-panel/ui/settings-panel");
+const loadHelp = () => import("@widgets/shortcuts-help/ui/shortcuts-help");
+const loadWelcome = () => import("@widgets/welcome/ui/welcome");
 const SettingsPanel = lazy(() =>
-  import("@widgets/settings-panel/ui/settings-panel").then((module) => ({
-    default: module.SettingsPanel,
+  loadSettings().then((module) => ({ default: module.SettingsPanel })),
+);
+const ShortcutsHelp = lazy(() =>
+  loadHelp().then((module) => ({ default: module.ShortcutsHelp })),
+);
+const Welcome = lazy(() =>
+  loadWelcome().then((module) => ({ default: module.Welcome })),
+);
+// Inglês e Drive ficam bem abaixo da dobra: entram logo depois da primeira
+// pintura, sem disputar a abertura da aba.
+const EnglishPanel = lazy(() =>
+  import("@widgets/english-panel/ui/english-panel").then((module) => ({
+    default: module.EnglishPanel,
+  })),
+);
+const DrivePanel = lazy(() =>
+  import("@widgets/drive-panel/ui/drive-panel").then((module) => ({
+    default: module.DrivePanel,
   })),
 );
 
@@ -79,6 +107,7 @@ const contextHint = ["Alt", "L"];
 const StaticBackdrop = memo(Backdrop);
 const StaticScrollRail = memo(ScrollRail);
 const StaticGreeting = memo(Greeting);
+const StaticDayPanel = memo(DayPanel);
 const StaticSearchBar = memo(SearchBar);
 const StaticShortcutGrid = memo(ShortcutGrid);
 const StaticDrivePanel = memo(DrivePanel);
@@ -88,9 +117,14 @@ const StaticFrequentSites = memo(FrequentSites);
 
 export function HomePage() {
   const { settings, ready, error, setError, update } = useSettings();
+  const stage = useIntroStageState(ready);
   const topSites = useTopSites();
   const sections = useHiddenSections();
-  const { appearance, change: changeAppearance } = useAppearance();
+  const {
+    appearance,
+    change: changeAppearance,
+    cyclePalette,
+  } = useAppearance();
   // Primeira abertura: boas-vindas uma única vez (nt-welcomed fica no backup).
   const [welcome, setWelcome] = useState(false);
   useEffect(() => {
@@ -115,7 +149,10 @@ export function HomePage() {
   const vocab = useVocab();
   const english = useEnglish();
   const timer = useFocusTimer();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    action?: { label: string; run: () => void };
+  } | null>(null);
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [pressedKey, setPressedKey] = useState<number | null>(null);
   const [help, setHelp] = useState(false);
@@ -159,6 +196,11 @@ export function HomePage() {
       const favorite = ready ? favorites[index] : null;
       if (!favorite) return false;
       setPressedKey(index);
+      logVisit({
+        url: favorite.url,
+        label: favorite.label,
+        source: "favorito",
+      });
       openAfterPress(favorite.url, () => setPressedKey(null));
       return true;
     },
@@ -177,7 +219,6 @@ export function HomePage() {
         // Alt A: perguntar a uma IA. Alt M: ditado por voz.
         if (event.code === "KeyA") {
           event.preventDefault();
-          window.scrollTo({ top: 0, behavior: "smooth" });
           search.current?.focusWith("ia ");
         } else if (event.code === "KeyM") {
           event.preventDefault();
@@ -234,13 +275,18 @@ export function HomePage() {
         : settings,
     [settings, drive.inbox, driveOn],
   );
-  const notify = useCallback((message: string) => {
-    setToast(message);
-    window.setTimeout(
-      () => setToast((current) => (current === message ? null : current)),
-      2400,
-    );
-  }, []);
+  const notify = useCallback(
+    (message: string, action?: { label: string; run: () => void }) => {
+      const next = { message, action };
+      setToast(next);
+      // Com ação (Desfazer), o aviso fica mais tempo para dar tempo de reagir.
+      window.setTimeout(
+        () => setToast((current) => (current === next ? null : current)),
+        action ? 6000 : 2400,
+      );
+    },
+    [],
+  );
   const changeContext = useCallback(
     (context: ContextId) =>
       update((previous) => ({ ...previous, activeContext: context })),
@@ -306,8 +352,14 @@ export function HomePage() {
       notify,
     ],
   );
+  const focusTask = useCallback(
+    (text: string) => {
+      timer.start({ id: null, title: text }, 25);
+      notify(`Foco de 25 min: ${text}`);
+    },
+    [timer.start, notify],
+  );
   const focusSearch = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     search.current?.focus();
   }, []);
   const dailyWord = useMemo(
@@ -335,6 +387,59 @@ export function HomePage() {
     [update],
   );
   const addShortcut = useCallback(() => setEditor({ kind: "shortcut" }), []);
+  // Menu de contexto dos ícones. Atalhos virtuais (os do Drive) não estão em
+  // settings.shortcuts: para eles as ações de edição avisam onde mudar.
+  const toggleFavorite = useCallback(
+    (item: (typeof settings.shortcuts)[number]) => {
+      if (!settings.shortcuts.some((entry) => entry.id === item.id)) {
+        notify("Atalho do Drive: troque a pasta no painel do Drive");
+        return;
+      }
+      update((previous) => ({
+        ...previous,
+        shortcuts: previous.shortcuts.map((entry) =>
+          entry.id === item.id
+            ? { ...entry, favorite: !entry.favorite }
+            : entry,
+        ),
+      }));
+      notify(
+        item.favorite
+          ? `${item.label} saiu dos favoritos`
+          : `${item.label} agora é favorito`,
+      );
+    },
+    [settings.shortcuts, update, notify],
+  );
+  const removeShortcut = useCallback(
+    (item: (typeof settings.shortcuts)[number]) => {
+      const index = settings.shortcuts.findIndex(
+        (entry) => entry.id === item.id,
+      );
+      if (index < 0) {
+        notify("Atalho do Drive: troque a pasta no painel do Drive");
+        return;
+      }
+      const removed = settings.shortcuts[index];
+      update((previous) => ({
+        ...previous,
+        shortcuts: previous.shortcuts.filter((entry) => entry.id !== item.id),
+      }));
+      // Prevenção de erro: em vez de perguntar antes, deixa desfazer depois.
+      notify(`${item.label} removido`, {
+        label: "Desfazer",
+        run: () =>
+          update((previous) => {
+            if (previous.shortcuts.some((entry) => entry.id === removed.id))
+              return previous;
+            const shortcuts = [...previous.shortcuts];
+            shortcuts.splice(Math.min(index, shortcuts.length), 0, removed);
+            return { ...previous, shortcuts };
+          }),
+      });
+    },
+    [settings.shortcuts, update, notify],
+  );
   const editShortcut = useCallback(
     (item: (typeof settings.shortcuts)[number]) =>
       setEditor({ kind: "shortcut", item }),
@@ -346,10 +451,13 @@ export function HomePage() {
       setEditor({ kind: "focus", item }),
     [],
   );
-  const openAll = useCallback(
-    () => openMany(contextual.slice(0, 12).map((item) => item.url)),
-    [contextual],
-  );
+  const openAll = useCallback(() => {
+    const items = contextual.slice(0, 12);
+    items.forEach((item) =>
+      logVisit({ url: item.url, label: item.label, source: "atalho" }),
+    );
+    openMany(items.map((item) => item.url));
+  }, [contextual]);
   const pinSite = useCallback(
     (site: (typeof topSites)[number]) =>
       setEditor({
@@ -361,6 +469,87 @@ export function HomePage() {
   const openSettings = useCallback(() => setEditor({ kind: "settings" }), []);
   const openHelp = useCallback(() => setHelp(true), []);
 
+  // Estável: o painel do dia é memo e não deve renderizar a cada tecla.
+  const englishRef = useRef(english);
+  englishRef.current = english;
+  const markWord = useCallback(() => englishRef.current.mark("word"), []);
+
+  // Pré-carrega os modais quando o navegador fica ocioso.
+  useEffect(() => {
+    const warm = () =>
+      void Promise.all([loadHelp(), loadSettings(), loadWelcome()]).catch(
+        () => undefined,
+      );
+    const idle = window.requestIdleCallback?.(warm, { timeout: 4000 });
+    const timer =
+      idle === undefined ? window.setTimeout(warm, 1500) : undefined;
+    return () => {
+      if (idle !== undefined) window.cancelIdleCallback?.(idle);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, []);
+
+  // Link na área de transferência ao abrir a aba: Ctrl+T, Enter abre.
+  const clipboard = useClipboardLink();
+
+  // Registro de acessos: o contexto entra em cada linha, e todo clique num
+  // link da página é anotado com a origem (a busca registra o próprio uso).
+  useEffect(() => setLogContext(contextName), [contextName]);
+  useEffect(() => {
+    const sourceOf = (link: Element): VisitSource | null => {
+      if (link.closest(".search, .context-menu, .settings-panel")) return null;
+      if (link.closest(".fold-dock")) return "favorito";
+      if (link.closest("[aria-label='Google Drive']")) return "drive";
+      if (link.closest(".stack")) return "foco";
+      if (link.closest(".frequent")) return "frequente";
+      if (link.closest(".tile-grid, .row-list")) return "atalho";
+      return "pagina";
+    };
+    const onClick = (event: MouseEvent) => {
+      if (event.button > 1) return;
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement)) return;
+      const source = sourceOf(link);
+      if (!source) return;
+      const label =
+        link.getAttribute("aria-label") ||
+        link.querySelector(".item-label, .drive-top-title, .drive-inbox-title")
+          ?.textContent ||
+        link.title ||
+        link.textContent ||
+        "";
+      logVisit({ url: link.href, label, source });
+    };
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("auxclick", onClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("auxclick", onClick, true);
+    };
+  }, []);
+
+  // Colar fora de um campo (Ctrl+V logo ao abrir a aba) cai direto na busca,
+  // que já mostra "↵ Abrir" para um link: colar e Enter, nada mais.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable]")) return;
+      const text = event.clipboardData?.getData("text/plain").trim();
+      if (!text) return;
+      event.preventDefault();
+      search.current?.focusWith(text);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, []);
+
+  // Títulos das seções derivam com a rolagem (profundidade entre camadas).
+  useScrollParallax(".section-heading", 24, [
+    settings.activeContext,
+    ready,
+    sections.hidden,
+  ]);
+
   useHotkeys({
     enabled: !editor && !help,
     focusSearch,
@@ -369,6 +558,7 @@ export function HomePage() {
     openSettings,
     addShortcut,
     openHelp,
+    cyclePalette,
     toggleFocus: () =>
       runCommand(
         timer.session?.state === "running"
@@ -380,7 +570,7 @@ export function HomePage() {
   const favoritesBlock = show("favorites") && (
     <StaticShortcutGrid
       key="favorites"
-      title={isHome ? "Favoritos" : "Favoritos de sempre"}
+      title="Favoritos"
       hint={favoritesHint}
       items={favorites}
       numbered
@@ -390,14 +580,19 @@ export function HomePage() {
       onAdd={addShortcut}
       onEdit={editShortcut}
       onReorder={reorderShortcuts}
+      onToggleFavorite={toggleFavorite}
+      onRemove={removeShortcut}
+      onNotify={notify}
     />
   );
   const driveBlock = show("drive") && (
-    <StaticDrivePanel
-      key="drive"
-      inbox={drive.inbox}
-      onSaveInbox={drive.save}
-    />
+    <Suspense key="drive" fallback={<div className="section-placeholder" />}>
+      <StaticDrivePanel
+        key="drive"
+        inbox={drive.inbox}
+        onSaveInbox={drive.save}
+      />
+    </Suspense>
   );
   const hasColumn = show("focus") || show("today");
   const columnBlock = hasColumn && (
@@ -411,11 +606,13 @@ export function HomePage() {
           timer={timer}
         />
       )}
-      {show("today") && <StaticTodayList today={today} />}
+      {show("today") && <StaticTodayList today={today} onFocusTask={focusTask} />}
     </div>
   );
   const englishBlock = show("english") && (
-    <EnglishPanel key="english" vocab={vocab} english={english} />
+    <Suspense key="english" fallback={<div className="section-placeholder" />}>
+      <EnglishPanel vocab={vocab} english={english} />
+    </Suspense>
   );
   const notesBlock = show("notes") && (
     <StaticNotesList key="notes" notes={notes} />
@@ -424,6 +621,7 @@ export function HomePage() {
     <StaticShortcutGrid
       key="shortcuts"
       title={contextName}
+      icon={contextIcons[settings.activeContext]}
       hint={contextHint}
       items={contextual}
       variant={isHome ? "list" : "tiles"}
@@ -433,14 +631,32 @@ export function HomePage() {
       onAdd={addShortcut}
       onEdit={editShortcut}
       onReorder={reorderShortcuts}
+      onToggleFavorite={toggleFavorite}
+      onRemove={removeShortcut}
+      onNotify={notify}
     />
   );
-  // Casa: favoritos, o dia (foco e hoje) ao lado da lista do contexto, notas
-  // em largura total e por último o Drive. Outro contexto: o contexto primeiro,
-  // depois o que o acompanha, e só então o que vale para qualquer contexto.
+  // A dobra (saudação, busca, favoritos 1–9) e "Seu dia" valem para todos os
+  // contextos. Casa: o dia (foco e hoje) ao lado da lista do contexto, notas,
+  // inglês e Drive. Outro contexto: a lista do contexto primeiro. Cada bloco
+  // leva um matiz do espectro (data-tone), sempre o mesmo para a mesma seção.
+  // "Seu dia" não depende do contexto: vem depois do que muda com ele (foco,
+  // hoje e atalhos), então trocar de contexto mexe no que está logo abaixo da
+  // dobra e o resto da página fica no lugar.
+  const dayBlock = (
+    <Reveal key="day" data-tone="6">
+      <StaticDayPanel
+        resume={resume}
+        tasks={taskCount}
+        notes={notes.notes.length}
+        focus={timer.stats}
+        dailyWord={dailyWord}
+        onWord={markWord}
+      />
+    </Reveal>
+  );
   const blocks = isHome ? (
     <>
-      {favoritesBlock && <Reveal key="favorites">{favoritesBlock}</Reveal>}
       <Reveal
         className="context-content"
         data-solo={!hasColumn || !show("shortcuts")}
@@ -448,28 +664,88 @@ export function HomePage() {
         {columnBlock}
         {shortcutsBlock}
       </Reveal>
-      {notesBlock && <Reveal key="notes">{notesBlock}</Reveal>}
-      {englishBlock && <Reveal key="english">{englishBlock}</Reveal>}
-      {driveBlock && <Reveal key="drive">{driveBlock}</Reveal>}
+      {dayBlock}
+      {notesBlock && (
+        <Reveal key="notes" data-tone="7">
+          {notesBlock}
+        </Reveal>
+      )}
+      {englishBlock && (
+        <Reveal key="english" data-tone="5">
+          {englishBlock}
+        </Reveal>
+      )}
+      {driveBlock && (
+        <Reveal key="drive" data-tone="1">
+          {driveBlock}
+        </Reveal>
+      )}
     </>
   ) : (
     <>
-      {shortcutsBlock}
-      {columnBlock && (
-        <div className="context-content" data-solo="true">
-          {columnBlock}
-        </div>
+      {shortcutsBlock && (
+        <Reveal key={`shortcuts-${settings.activeContext}`} data-tone="4">
+          {shortcutsBlock}
+        </Reveal>
       )}
-      {notesBlock}
-      {englishBlock}
-      {favoritesBlock}
-      {driveBlock}
+      {columnBlock && (
+        <Reveal key="column" className="context-content" data-solo="true">
+          {columnBlock}
+        </Reveal>
+      )}
+      {dayBlock}
+      {notesBlock && (
+        <Reveal key="notes" data-tone="7">
+          {notesBlock}
+        </Reveal>
+      )}
+      {englishBlock && (
+        <Reveal key="english" data-tone="5">
+          {englishBlock}
+        </Reveal>
+      )}
+      {driveBlock && (
+        <Reveal key="drive" data-tone="1">
+          {driveBlock}
+        </Reveal>
+      )}
     </>
   );
 
+  // Atalhos para as seções, na ordem em que aparecem na página.
+  const pending = taskCount.total - taskCount.done;
+  const nav: Record<string, SectionLink | null> = {
+    shortcuts: show("shortcuts")
+      ? { label: contextName, name: contextName, icon: contextIcons[settings.activeContext] }
+      : null,
+    focus: show("focus") ? { label: "Em foco", name: "Em foco", icon: Target } : null,
+    today: show("today") ? { label: "Hoje", name: "Hoje", icon: CalendarCheck, badge: pending } : null,
+    day: { label: "Seu dia", name: "Seu dia", icon: Gauge },
+    notes: show("notes") ? { label: "Notas", name: "Notas", icon: StickyNote, badge: notes.notes.length } : null,
+    english: show("english") ? { label: "Inglês", name: "Inglês", icon: Languages } : null,
+    drive: show("drive") ? { label: "Google Drive", name: "Drive", icon: HardDrive } : null,
+  };
+  const navOrder = isHome
+    ? ["focus", "today", "shortcuts", "day", "notes", "english", "drive"]
+    : ["shortcuts", "focus", "today", "day", "notes", "english", "drive"];
+  const sectionLinks = navOrder.flatMap((id) => (nav[id] ? [nav[id] as SectionLink] : []));
+
   return (
     <MotionProvider>
-      <div className="app-shell">
+      <IntroProvider value={stage}>
+      <div className="app-shell" data-stage={stage}>
+        <DocumentTitle
+          contextName={contextName}
+          pending={taskCount.total - taskCount.done}
+          focus={
+            timer.session
+              ? {
+                  label: formatRemaining(timer.remaining),
+                  done: timer.session.state === "done",
+                }
+              : null
+          }
+        />
         <StaticBackdrop />
         <ScrollProgress />
         <AppHeader
@@ -493,27 +769,26 @@ export function HomePage() {
         />
         <StaticScrollRail />
         <main className="main-content">
-          <Reveal>
-            <ScrollDrift>
-              <StaticGreeting
-                resume={resume}
-                contextName={contextName}
-                tasks={taskCount}
-                notes={notes.notes.length}
-                focus={timer.stats}
-                dailyWord={dailyWord}
-                onWord={() => english.mark("word")}
-              />
-            </ScrollDrift>
-          </Reveal>
-          <StaticSearchBar
-            ref={search}
-            settings={searchSettings}
-            frequent={topSites}
-            favicons={favicons}
-            onFavoriteKey={openFavorite}
-            onCommand={runCommand}
-          />
+          {/* A dobra: tudo o que importa para sair rápido, numa tela só. */}
+          <div className="fold">
+            <StaticGreeting />
+            <StaticSearchBar
+              ref={search}
+              settings={searchSettings}
+              frequent={topSites}
+              favicons={favicons}
+              onFavoriteKey={openFavorite}
+              onCommand={runCommand}
+              clipboardUrl={clipboard.url}
+              onClipboardUsed={clipboard.consume}
+            />
+            {favoritesBlock && (
+              <div className="fold-dock" data-tone="1">
+                {favoritesBlock}
+              </div>
+            )}
+            <SectionNav links={sectionLinks} />
+          </div>
           {error && (
             <div className="error-banner" role="alert">
               <span>{error}</span>
@@ -529,8 +804,10 @@ export function HomePage() {
           {blocks}
           {/* Por último: vem do histórico e pode chegar depois do primeiro
             quadro; aqui embaixo, aparecer não empurra mais nada. */}
-          {show("frequent") && (
-            <StaticFrequentSites sites={frequent} onPin={pinSite} />
+          {show("frequent") && frequent.length > 0 && (
+            <Reveal key="frequent" data-tone="3">
+              <StaticFrequentSites sites={frequent} onPin={pinSite} />
+            </Reveal>
           )}
         </main>
         <footer className="footer">
@@ -549,24 +826,72 @@ export function HomePage() {
             </span>
           </span>
           <span className="footer-keys">
-            <kbd>/</kbd> busca · <kbd>1</kbd>–<kbd>9</kbd> favoritos ·{" "}
-            <kbd>Alt</kbd> <kbd>1–4</kbd> contexto · <kbd>Alt</kbd> <kbd>T</kbd>{" "}
-            tarefa · <kbd>Alt</kbd> <kbd>N</kbd> nota ·{" "}
+            <span className="footer-key">
+              <span className="keys">
+                <kbd>/</kbd>
+              </span>
+              busca
+            </span>
+            <span className="footer-key">
+              <span className="keys">
+                <kbd>1–9</kbd>
+              </span>
+              favoritos
+            </span>
+            <span className="footer-key">
+              <span className="keys">
+                <kbd>Alt</kbd>
+                <kbd>1–4</kbd>
+              </span>
+              contexto
+            </span>
+            <span className="footer-key">
+              <span className="keys">
+                <kbd>Alt</kbd>
+                <kbd>T</kbd>
+              </span>
+              tarefa
+            </span>
+            <span className="footer-key">
+              <span className="keys">
+                <kbd>Alt</kbd>
+                <kbd>N</kbd>
+              </span>
+              nota
+            </span>
             <button type="button" className="footer-help" onClick={openHelp}>
-              <kbd>?</kbd> todos os atalhos
+              <span className="keys">
+                <kbd>?</kbd>
+              </span>
+              todos os atalhos
             </button>
           </span>
         </footer>
         <div
           className="toast"
           data-on={toast !== null}
+          data-action={toast?.action ? true : undefined}
           role="status"
           aria-live="polite"
         >
-          {toast}
+          {toast?.message}
+          {toast?.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={() => {
+                toast.action?.run();
+                setToast(null);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
-        {welcome && ready && <Welcome onClose={closeWelcome} />}
-        {help && <ShortcutsHelp onClose={() => setHelp(false)} />}
+        <Suspense fallback={null}>
+          {welcome && ready && <Welcome onClose={closeWelcome} />}
+          {help && <ShortcutsHelp onClose={() => setHelp(false)} />}
+        </Suspense>
         {editor && (
           <Suspense fallback={null}>
             <SettingsPanel
@@ -587,6 +912,7 @@ export function HomePage() {
           </Suspense>
         )}
       </div>
+      </IntroProvider>
     </MotionProvider>
   );
 }

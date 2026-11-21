@@ -4,7 +4,7 @@
   "description": "Nova aba local para atalhos, contextos e prioridades.",
   "version": "0.2.0",
   "chrome_url_overrides": { "newtab": "index.html" },
-  "permissions": ["storage", "topSites", "sessions", "notifications"],
+  "permissions": ["storage", "topSites", "sessions", "notifications", "history", "clipboardRead"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

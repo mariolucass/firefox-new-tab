@@ -1,0 +1,19 @@
+[tools]
+node = "lts"
+pnpm = "12"
+
+[tasks.setup]
+description = "Instala as dependências"
+run = "pnpm install"
+
+[tasks.dev]
+description = "Servidor de desenvolvimento"
+run = "pnpm dev"
+
+[tasks.lint]
+description = "ESLint + typecheck"
+run = ["pnpm lint", "pnpm typecheck"]
+
+[tasks.test]
+description = "Vitest"
+run = "pnpm test"

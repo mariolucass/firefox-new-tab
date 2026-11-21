@@ -40,8 +40,20 @@ if (!skipBuild) {
 }
 
 // Arquivos que a extensão nunca usa: payloads RSC (.txt), 404 e _not-found.
-// De public/brand a extensão só precisa do que a página e a aba usam.
-const brandKept = new Set(["mark.svg", "wordmark.svg", "favicon.svg", "favicon.ico"]);
+// De public/brand vai só o que o código referencia ("brand/arquivo.ext" em
+// src/). Antes era uma lista fixa, e cada arquivo novo (marca d'água, logo do
+// tema claro, boas-vindas) sumia da extensão sem aviso.
+async function referencedBrand() {
+  const names = new Set();
+  for (const file of await walk(join(root, "src"))) {
+    if (!/\.(tsx?|css)$/.test(file)) continue;
+    for (const match of (await readFile(file, "utf8")).matchAll(/brand\/([\w.-]+\.(?:svg|png|ico|webmanifest))/g))
+      names.add(match[1]);
+  }
+  return names;
+}
+const brandKept = await referencedBrand();
+console.log(`brand/: ${[...brandKept].sort().join(", ")}`);
 const skip = (path) =>
   (path.startsWith("brand/") && !brandKept.has(path.slice(6))) ||
   path.endsWith(".txt") || path.startsWith("_not-found") || path === "404.html" || path.startsWith("_next/inline-404") || path.endsWith(".map");

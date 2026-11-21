@@ -33,8 +33,8 @@ export const colors = {
   text: "#f5f5f7",
   textSoft: "#dfe4ee",
   muted: "#c9d2e3", // --mx-text-dim
-  subtle: "#b2bdd2",
-  faint: "#98a4bd",
+  subtle: "#c0c9da",
+  faint: "#a8b3c8",
   // Acento: azul de sistema. `accent` é a versão para texto sobre navy
   // (#0a84ff puro fica abaixo de 4,5:1 em texto pequeno); `accentFill` é o
   // azul cheio de fundos, linha selecionada e foco, como no Firefox.
@@ -168,8 +168,8 @@ export const lightColors: Record<ColorToken, string> = {
   text: "#0c1629",
   textSoft: "#1c2946",
   muted: "#38476a",
-  subtle: "#4f5e7e",
-  faint: "#5d6b88",
+  subtle: "#435272",
+  faint: "#4c5a78",
   accent: "#0062d1",
   accentStrong: "#004fa8",
   accentFill: "#007aff",
@@ -194,3 +194,137 @@ export const accents = {
   green: { label: "Verde", dark: ["#30d158", "#5fe07f", "#8aeba2", "#1fa844"], light: ["#1fa844", "#157a31", "#0f5d25", "#1a8f3a"] },
 } as const;
 export type AccentId = keyof typeof accents;
+
+/* ---------- Atmosferas ----------
+   Paletas completas. Cada uma troca o chão (fundo, superfícies, tom do vidro),
+   as três luzes do fundo e um espectro de 7 matizes que a página distribui:
+   uma cor por seção, as métricas do mostrador, o brilho que acompanha a
+   rolagem.
+   O destaque (acento) padrão é o da paleta; a cor de destaque escolhida à mão
+   ainda vale por cima. "midnight" é o navy do Firefox (não mexer no `bg`). */
+type Mode = {
+  /** Chão: fundo, topo e base do degradê. */
+  bg: string;
+  top: string;
+  bottom: string;
+  /** RGB (sem vírgula) do vidro, como `--glass-tint`. */
+  glass: string;
+  glassHi: string;
+  /** Três luzes do fundo. */
+  glow: readonly [string, string, string];
+  /**
+   * Espectro de 7 matizes que percorre o círculo cromático, afinado ao clima
+   * da atmosfera. A ordem tem sentido e é a mesma em todas as paletas:
+   * 1 azul (favoritos) · 2 laranja (foco) · 3 verde (hoje, tarefas) ·
+   * 4 violeta (contexto) · 5 rosa (inglês) · 6 turquesa (drive) · 7 amarelo (notas).
+   * A métrica no mostrador usa a cor da sua seção.
+   */
+  spectrum: readonly [string, string, string, string, string, string, string];
+};
+export type Palette = { label: string; mood: string; accent: AccentId; dark: Mode; light: Mode };
+
+export const palettes = {
+  midnight: {
+    label: "Meia-noite",
+    mood: "Navy do Firefox, azul de sistema",
+    accent: "blue",
+    dark: {
+      bg: "#0c1629", top: "#0b1324", bottom: "#05080f",
+      glass: "14 24 46", glassHi: "18 30 56",
+      glow: ["#0a84ff", "#5e5ce6", "#30d1be"],
+      spectrum: ["#0a84ff", "#ff9f0a", "#30d158", "#bf5af2", "#ff375f", "#40c8e0", "#ffd60a"],
+    },
+    light: {
+      bg: "#eef2f8", top: "#f6f9fe", bottom: "#e1e8f4",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#7ab8ff", "#a9a7ff", "#8fe3d8"],
+      spectrum: ["#007aff", "#c26a00", "#1c8f3a", "#9a3fd0", "#d70f4a", "#0a7f99", "#a07800"],
+    },
+  },
+  aurora: {
+    label: "Aurora",
+    mood: "Verde-água boreal e violeta",
+    accent: "teal",
+    dark: {
+      bg: "#071418", top: "#08191e", bottom: "#02080a",
+      glass: "10 30 36", glassHi: "14 38 44",
+      glow: ["#20e3b2", "#7c5cff", "#1fb6ff"],
+      spectrum: ["#4cc9ff", "#ffb36b", "#5ef0b0", "#9d8cff", "#ff7ab8", "#2ee6d6", "#f2e85c"],
+    },
+    light: {
+      bg: "#ecf6f4", top: "#f4fbfa", bottom: "#dcefeb",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#7fe8d0", "#b9a8ff", "#93d8ff"],
+      spectrum: ["#0b7fc4", "#b45e10", "#108a5a", "#5b46d6", "#c42a7e", "#0b8f86", "#8a7d00"],
+    },
+  },
+  dusk: {
+    label: "Crepúsculo",
+    mood: "Ameixa, coral e âmbar",
+    accent: "pink",
+    dark: {
+      bg: "#170d1b", top: "#1d0f22", bottom: "#09040b",
+      glass: "36 18 40", glassHi: "46 24 50",
+      glow: ["#ff5e7e", "#ffad47", "#9b5cff"],
+      spectrum: ["#7aa2ff", "#ff8a5c", "#9ad48a", "#c49bff", "#ff6b8b", "#5fd4c4", "#ffc15c"],
+    },
+    light: {
+      bg: "#f9eff1", top: "#fdf6f7", bottom: "#f1e0e5",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#ffb0c0", "#ffd59a", "#cdb0ff"],
+      spectrum: ["#3a62d0", "#c8501f", "#4a8a3a", "#7a45d0", "#d0285a", "#1a8a7c", "#a86400"],
+    },
+  },
+  amethyst: {
+    label: "Ametista",
+    mood: "Violeta profundo, magenta e céu",
+    accent: "indigo",
+    dark: {
+      bg: "#100c22", top: "#140f2b", bottom: "#060410",
+      glass: "26 20 52", glassHi: "34 26 64",
+      glow: ["#8b5cf6", "#ec4899", "#38bdf8"],
+      spectrum: ["#7c9cff", "#ffa36b", "#5eead4", "#a78bfa", "#f472b6", "#38bdf8", "#fbbf24"],
+    },
+    light: {
+      bg: "#f1eff9", top: "#f8f6fd", bottom: "#e4dff3",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#c4b0ff", "#ffb0dc", "#a6dcff"],
+      spectrum: ["#4060d8", "#c0581a", "#0d8a7a", "#6d48d8", "#c42a7e", "#0a78b0", "#a36a00"],
+    },
+  },
+  forest: {
+    label: "Floresta",
+    mood: "Verde musgo, lima e ouro",
+    accent: "green",
+    dark: {
+      bg: "#0a140f", top: "#0c1a13", bottom: "#030805",
+      glass: "16 32 24", glassHi: "20 40 30",
+      glow: ["#4ade80", "#e3c565", "#2dd4bf"],
+      spectrum: ["#6cb8ff", "#f59e6b", "#4ade80", "#b49cff", "#ff8fa3", "#5eead4", "#e3c565"],
+    },
+    light: {
+      bg: "#eef5ef", top: "#f6fbf6", bottom: "#dfece1",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#a6e8bc", "#f0dc9a", "#98e6da"],
+      spectrum: ["#2a6fc0", "#c0541f", "#1f8a45", "#6a4fc4", "#c43a5a", "#0f8a7d", "#9a7200"],
+    },
+  },
+  graphite: {
+    label: "Grafite",
+    mood: "Preto pro, branco e um laranja",
+    accent: "orange",
+    dark: {
+      bg: "#0c0c0e", top: "#131316", bottom: "#050506",
+      glass: "28 28 32", glassHi: "36 36 40",
+      glow: ["#8e8e93", "#ff9f0a", "#48484a"],
+      spectrum: ["#8fb4ff", "#ffa94d", "#7bd88f", "#c3a6ff", "#ff8a8a", "#7fd4e0", "#f5d76e"],
+    },
+    light: {
+      bg: "#f2f2f4", top: "#fafafa", bottom: "#e4e4e7",
+      glass: "255 255 255", glassHi: "255 255 255",
+      glow: ["#d4d4d8", "#ffcf8a", "#e4e4e7"],
+      spectrum: ["#2f5fb8", "#b85e00", "#2a7f3e", "#6f4fc0", "#c03636", "#1a7f8f", "#8f7400"],
+    },
+  },
+} as const satisfies Record<string, Palette>;
+export type PaletteId = keyof typeof palettes;
